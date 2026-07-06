@@ -1,0 +1,1187 @@
+{
+  "name": "Entrega Final - Brief Triage & Fee Compliance Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "documentId": {
+          "__rl": true,
+          "value": "1BylaQILkq8IqkCnOu5Z3tOAHg39j_OzfF9OP1d0dP6Q",
+          "mode": "list",
+          "cachedResultName": "Commerce Hub - Entrega Final",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BylaQILkq8IqkCnOu5Z3tOAHg39j_OzfF9OP1d0dP6Q/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Brief",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BylaQILkq8IqkCnOu5Z3tOAHg39j_OzfF9OP1d0dP6Q/edit#gid=0"
+        },
+        "event": "rowAdded",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "1aae79d9-ae6a-4dba-84b9-e8ddbda270b1",
+      "name": "Google Sheets Trigger",
+      "credentials": {
+        "googleSheetsTriggerOAuth2Api": {
+          "id": "LeXl4PsmLbIxuHFT",
+          "name": "Google Sheets Trigger OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=Sos un agente de triage que clasifica briefs creativos de una agencia LATAM. Hacés dos evaluaciones en una sola respuesta.\n\nCONTEXTO DEL CLIENTE:\n- Nombre: {{ $json.nombre_archetipo }}\n- Fee mensual: {{ $json.fee_mensual }}\n- Scope contratado: {{ $json.scope_contratado }}\n- Historial: {{ $json.historial_notas }}\n\nBRIEF ACTUAL:\n- Tipo de trabajo: {{ $('Google Sheets Trigger').item.json.tipo_trabajo }}\n- Descripción: {{ $('Google Sheets Trigger').item.json.descripcion }}\n- Assets recibidos: {{ $('Google Sheets Trigger').item.json.assets_recibidos }}\n- Assets faltantes: {{ $('Google Sheets Trigger').item.json.assets_faltantes }}\n- Deadline: {{ $('Google Sheets Trigger').item.json.deadline }}\n\nCATÁLOGO DE MOTIVOS (usá estos valores exactos):\nStopper: \"KV missing\", \"Retailer specs missing\", \"Assets missing (packshots, copy, fonts)\"\nNon-Stopper: \"Retailer template\", \"Brand guidelines\", \"Inconsistencies\", \"Information missing\"\n\nTAREA 1 - CLASIFICACIÓN STOPPER:\nMirá el campo \"Assets faltantes\".\n- Si \"Assets faltantes\" está vacío o dice \"-\" → NO falta nada crítico → clasificacion = \"Non-Stopper\", elegí el motivo Non-Stopper más adecuado (o \"Information missing\" si no aplica ninguno).\n- Si \"Assets faltantes\" lista assets críticos (KV, packshots, specs, fonts, copy) → clasificacion = \"Stopper\", elegí el motivo Stopper que corresponda.\n- Si \"Assets faltantes\" lista solo cosas no críticas (templates, guidelines) → clasificacion = \"Non-Stopper\".\n\nTAREA 2 - VALIDACIÓN DE FEE:\nCompará el tipo de trabajo del brief contra el scope contratado del cliente.\nSi el tipo de trabajo está incluido en el scope → dentro_del_fee = true.\nSi no está incluido → dentro_del_fee = false.\n\nRespondé SOLO con un JSON válido, sin explicaciones ni markdown:\n{\"clasificacion\": \"Stopper\", \"motivo\": \"KV missing\", \"etiqueta\": \"Asset faltante\", \"dentro_del_fee\": false, \"razonamiento\": \"explicación breve en una línea\"}"
+            }
+          ]
+        },
+        "simplify": "={{ true }}",
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        448,
+        0
+      ],
+      "id": "5cfbfd2e-a75b-474c-81cd-770aa2da6df1",
+      "name": "Message a model",
+      "retryOnFail": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "pMmmgfEv6xFE26c7",
+          "name": "n8n free OpenAI API credits"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ JSON.parse($json.output[0].content[0].text).clasificacion === \"Non-Stopper\" && JSON.parse($json.output[0].content[0].text).dentro_del_fee === true }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    },
+                    "id": "e4a56fbf-11bb-46fa-8b7d-163eeb156b75"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Auto-aprobado"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "968e0c34-5d42-438f-8f0a-500c8c2bc614",
+                    "leftValue": "={{ JSON.parse($json.output[0].content[0].text).clasificacion === \"Stopper\" || JSON.parse($json.output[0].content[0].text).dentro_del_fee === false }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "HITL"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1056,
+        0
+      ],
+      "id": "3f617313-2d7f-459f-a1e5-2a4a729a2e17",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "sendTo": "crismourin@gmail.com",
+        "subject": "=[Commerce Hub] Brief Auto-aprobado - {{ $('Google Sheets Trigger').item.json.brief_id }}",
+        "emailType": "text",
+        "message": "=Hola equipo, el brief {{ $('Google Sheets Trigger').item.json.brief_id }} del cliente {{ $('Google Sheets Trigger').item.json.cliente_id }} fue clasificado como {{ JSON.parse($('Message a model').item.json.output[0].content[0].text).clasificacion }} y está dentro del fee. Tipo de trabajo: {{ $('Google Sheets Trigger').item.json.tipo_trabajo }}. Aprobado automáticamente, listo para producción.",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1632,
+        -176
+      ],
+      "id": "91df9fb8-2b93-4fd9-8779-f3826acfb07c",
+      "name": "Send a message",
+      "webhookId": "d6fb5361-5615-46de-81f0-89b31b607888",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "nLGMprj2aiVH3jnl",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1BylaQILkq8IqkCnOu5Z3tOAHg39j_OzfF9OP1d0dP6Q",
+          "mode": "list",
+          "cachedResultName": "Commerce Hub - Entrega Final",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BylaQILkq8IqkCnOu5Z3tOAHg39j_OzfF9OP1d0dP6Q/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Brief",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BylaQILkq8IqkCnOu5Z3tOAHg39j_OzfF9OP1d0dP6Q/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "brief_id": "={{ $('Google Sheets Trigger').item.json.brief_id }}",
+            "clasificacion": "={{ JSON.parse($json.output[0].content[0].text).clasificacion }}",
+            "motivo": "={{ JSON.parse($json.output[0].content[0].text).motivo }}",
+            "etiqueta": "={{ JSON.parse($json.output[0].content[0].text).etiqueta }}",
+            "dentro_del_fee": "={{ JSON.parse($json.output[0].content[0].text).dentro_del_fee }}",
+            "estado": "Pendiente de aprobación"
+          },
+          "matchingColumns": [
+            "brief_id"
+          ],
+          "schema": [
+            {
+              "id": "brief_id",
+              "displayName": "brief_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "cliente_id",
+              "displayName": "cliente_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tipo_trabajo",
+              "displayName": "tipo_trabajo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "descripcion",
+              "displayName": "descripcion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "assets_recibidos",
+              "displayName": "assets_recibidos",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "assets_faltantes",
+              "displayName": "assets_faltantes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "deadline",
+              "displayName": "deadline",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "clasificacion",
+              "displayName": "clasificacion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "motivo",
+              "displayName": "motivo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "etiqueta",
+              "displayName": "etiqueta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "dentro_del_fee",
+              "displayName": "dentro_del_fee",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "estado",
+              "displayName": "estado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "decision_humana",
+              "displayName": "decision_humana",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1360,
+        96
+      ],
+      "id": "1e8bb1c2-d489-44ca-819e-4a92880419d9",
+      "name": "Append or update row in sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "vyHXp0zRC0ZF9QlQ",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "crismourin@gmail.com",
+        "subject": "=[Commerce Hub] HITL - Aprobación requerida - {{ $('Google Sheets Trigger').item.json.brief_id }}",
+        "emailType": "text",
+        "message": "=Hola equipo, el brief {{ $('Google Sheets Trigger').item.json.brief_id }} del cliente {{ $('Google Sheets Trigger').item.json.cliente_id }} requiere aprobación manual. Clasificación: {{ JSON.parse($('Message a model').item.json.output[0].content[0].text).clasificacion }}. Motivo: {{ JSON.parse($('Message a model').item.json.output[0].content[0].text).motivo }}. Dentro del fee: {{ JSON.parse($('Message a model').item.json.output[0].content[0].text).dentro_del_fee }}. Tipo de trabajo: {{ $('Google Sheets Trigger').item.json.tipo_trabajo }}. Razonamiento IA: {{ JSON.parse($('Message a model').item.json.output[0].content[0].text).razonamiento }}. Por favor responder APROBADO o RECHAZADO.\nPara aprobar o rechazar, hacé click acá: {{ $execution.resumeUrl }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1664,
+        96
+      ],
+      "id": "0522fe36-0e7b-46fa-ae27-404ed35295c5",
+      "name": "Send a message1",
+      "webhookId": "0b62e095-9ad1-473d-b646-dffcc91e18e9",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "nLGMprj2aiVH3jnl",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "crismourin@gmail.com",
+        "subject": "[Commerce Hub] ⚠ Error API - Falla al buscar cliente",
+        "emailType": "text",
+        "message": "=Alerta del sistema:  Falló la búsqueda del cliente en Google Sheets después de 3 reintentos.  Cliente ID: {{ $('Google Sheets Trigger').item.json.cliente_id }} Pedido: {{ $('Google Sheets Trigger').item.json.descripcion }}  Se requiere revisión manual del pedido. El brief queda en estado ERROR.  Scope Change Triage Agent",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        368,
+        224
+      ],
+      "id": "033942d0-4e3e-4d0a-abcf-ee86448ba014",
+      "name": "Send a message2",
+      "webhookId": "ad2b1b0d-a874-40a4-88ca-582c5ead5346",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "nLGMprj2aiVH3jnl",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "crismourin@gmail.com",
+        "subject": "[Commerce Hub] ⚠ Error IA - HITL requerido",
+        "emailType": "text",
+        "message": "=Alerta HITL (Human-in-the-Loop):  Falló el procesamiento de IA después de 3 reintentos. Se requiere revisión manual del brief.  Cliente: {{ $('Google Sheets Trigger').item.json.cliente_nombre }} (ID: {{ $('Google Sheets Trigger').item.json.cliente_id }}) Tipo de trabajo: {{ $('Google Sheets Trigger').item.json.tipo_trabajo }} Descripción: {{ $('Google Sheets Trigger').item.json.descripcion }}  Un analista debe clasificar manualmente si el pedido está dentro o fuera del fee. El brief queda en estado ERROR hasta que sea revisado.  Scope Change Triage Agent",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        736,
+        224
+      ],
+      "id": "ddc1747d-a4e2-45f3-95af-b63971c9711a",
+      "name": "Send a message3",
+      "webhookId": "02fd9656-b485-4d86-9a99-61ff86d19ea4",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "nLGMprj2aiVH3jnl",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c45fe90b-be10-4733-9aa5-4d31a486a0e0",
+              "name": "estado",
+              "value": "ERROR",
+              "type": "string"
+            },
+            {
+              "id": "ea1b3a1e-e571-4e7f-8395-a608ab96166a",
+              "name": "motivo",
+              "value": "Retry/HITL agotado - Requiere revisión manual",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1024,
+        416
+      ],
+      "id": "3576babd-9d6d-4ccd-9194-0bb24132bcdc",
+      "name": "ERROR (IA)"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "74ee2373-faa5-4e1f-a9c0-587b24dd3b63",
+              "name": "estado",
+              "value": "ERROR",
+              "type": "string"
+            },
+            {
+              "id": "497e932c-af61-466d-9b87-8f11692a7019",
+              "name": "motivo",
+              "value": "Retry/HITL agotado - Requiere revisión manual",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        576,
+        368
+      ],
+      "id": "aaa100b0-5111-4241-8a02-437764edad0e",
+      "name": "ERROR (API)"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1BylaQILkq8IqkCnOu5Z3tOAHg39j_OzfF9OP1d0dP6Q",
+          "mode": "list",
+          "cachedResultName": "Commerce Hub - Entrega Final",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BylaQILkq8IqkCnOu5Z3tOAHg39j_OzfF9OP1d0dP6Q/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 195611393,
+          "mode": "list",
+          "cachedResultName": "Clientes",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BylaQILkq8IqkCnOu5Z3tOAHg39j_OzfF9OP1d0dP6Q/edit#gid=195611393"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "=cliente_id",
+              "lookupValue": "={{ $json.cliente_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        208,
+        0
+      ],
+      "id": "fe4ec150-3c15-4baa-8ca9-b430bb0a799c",
+      "name": "Get row(s) in sheet",
+      "retryOnFail": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "vyHXp0zRC0ZF9QlQ",
+          "name": "Google Sheets OAuth2 API"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1BylaQILkq8IqkCnOu5Z3tOAHg39j_OzfF9OP1d0dP6Q",
+          "mode": "list",
+          "cachedResultName": "Commerce Hub - Entrega Final",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BylaQILkq8IqkCnOu5Z3tOAHg39j_OzfF9OP1d0dP6Q/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Brief",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BylaQILkq8IqkCnOu5Z3tOAHg39j_OzfF9OP1d0dP6Q/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "brief_id": "={{ $('Google Sheets Trigger').item.json.brief_id }}",
+            "clasificacion": "={{ JSON.parse($json.output[0].content[0].text).clasificacion }}",
+            "motivo": "={{ JSON.parse($json.output[0].content[0].text).motivo }}",
+            "etiqueta": "={{ JSON.parse($json.output[0].content[0].text).etiqueta }}",
+            "dentro_del_fee": "={{ JSON.parse($json.output[0].content[0].text).dentro_del_fee }}",
+            "estado": "Aprobado"
+          },
+          "matchingColumns": [
+            "brief_id"
+          ],
+          "schema": [
+            {
+              "id": "brief_id",
+              "displayName": "brief_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "cliente_id",
+              "displayName": "cliente_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tipo_trabajo",
+              "displayName": "tipo_trabajo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "descripcion",
+              "displayName": "descripcion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "assets_recibidos",
+              "displayName": "assets_recibidos",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "assets_faltantes",
+              "displayName": "assets_faltantes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "deadline",
+              "displayName": "deadline",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "clasificacion",
+              "displayName": "clasificacion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "motivo",
+              "displayName": "motivo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "etiqueta",
+              "displayName": "etiqueta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "dentro_del_fee",
+              "displayName": "dentro_del_fee",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "estado",
+              "displayName": "estado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "decision_humana",
+              "displayName": "decision_humana",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1344,
+        -176
+      ],
+      "id": "799ac874-94ec-4cfd-ae8a-2a4a5e88899a",
+      "name": "Append or update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "vyHXp0zRC0ZF9QlQ",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1BylaQILkq8IqkCnOu5Z3tOAHg39j_OzfF9OP1d0dP6Q",
+          "mode": "list",
+          "cachedResultName": "Commerce Hub - Entrega Final",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BylaQILkq8IqkCnOu5Z3tOAHg39j_OzfF9OP1d0dP6Q/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 981797147,
+          "mode": "list",
+          "cachedResultName": "ai_logs",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BylaQILkq8IqkCnOu5Z3tOAHg39j_OzfF9OP1d0dP6Q/edit#gid=981797147"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "brief_id": "={{ $('Google Sheets Trigger').item.json.brief_id }}",
+            "input": "={{ $('Google Sheets Trigger').item.json.descripcion }}",
+            "output": "={{ $('Message a model').item.json.output[0].content[0].text }}",
+            "timestamp": "={{ new Date().toISOString() }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "log_id",
+              "displayName": "log_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "brief_id",
+              "displayName": "brief_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "input",
+              "displayName": "input",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "output",
+              "displayName": "output",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "confianza",
+              "displayName": "confianza",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "latencia_ms",
+              "displayName": "latencia_ms",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "costo_usd",
+              "displayName": "costo_usd",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "error",
+              "displayName": "error",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        816,
+        -128
+      ],
+      "id": "0e0e1371-6ec2-47d2-9fae-6723105695e9",
+      "name": "ai_logs",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "vyHXp0zRC0ZF9QlQ",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resume": "webhook",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1952,
+        128
+      ],
+      "id": "2d33ab23-2d93-4dbc-8d1f-a28e54071315",
+      "name": "HITL - Espera aprobación",
+      "webhookId": "dd77b81b-e405-44f9-a4c4-da558b353f44"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1BylaQILkq8IqkCnOu5Z3tOAHg39j_OzfF9OP1d0dP6Q",
+          "mode": "list",
+          "cachedResultName": "Commerce Hub - Entrega Final",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BylaQILkq8IqkCnOu5Z3tOAHg39j_OzfF9OP1d0dP6Q/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Brief",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BylaQILkq8IqkCnOu5Z3tOAHg39j_OzfF9OP1d0dP6Q/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "brief_id": "={{ $('Google Sheets Trigger').item.json.brief_id }}",
+            "estado": "Aprobado por Humano",
+            "decision_humana": "Aprobado"
+          },
+          "matchingColumns": [
+            "brief_id"
+          ],
+          "schema": [
+            {
+              "id": "brief_id",
+              "displayName": "brief_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "cliente_id",
+              "displayName": "cliente_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tipo_trabajo",
+              "displayName": "tipo_trabajo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "descripcion",
+              "displayName": "descripcion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "assets_recibidos",
+              "displayName": "assets_recibidos",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "assets_faltantes",
+              "displayName": "assets_faltantes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "deadline",
+              "displayName": "deadline",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "clasificacion",
+              "displayName": "clasificacion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "motivo",
+              "displayName": "motivo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "etiqueta",
+              "displayName": "etiqueta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "dentro_del_fee",
+              "displayName": "dentro_del_fee",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "estado",
+              "displayName": "estado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "decision_humana",
+              "displayName": "decision_humana",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2176,
+        160
+      ],
+      "id": "456ed1f5-b079-4bf4-affb-f6005c9daa84",
+      "name": "Cierre HITL",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "vyHXp0zRC0ZF9QlQ",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Sheets Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "ai_logs",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a message3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Append or update row in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append or update row in sheet1": {
+      "main": [
+        [
+          {
+            "node": "Send a message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message2": {
+      "main": [
+        [
+          {
+            "node": "ERROR (API)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message3": {
+      "main": [
+        [
+          {
+            "node": "ERROR (IA)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ERROR (API)": {
+      "main": [
+        []
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a message2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append or update row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message1": {
+      "main": [
+        [
+          {
+            "node": "HITL - Espera aprobación",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ai_logs": {
+      "main": [
+        []
+      ]
+    },
+    "HITL - Espera aprobación": {
+      "main": [
+        [
+          {
+            "node": "Cierre HITL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "8ed16720-0fca-479c-a668-12bf63486e32",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b89d6f78ea0e084f8e28ce9666ba2b81522f5f607c115f672a5168a4d5b9af77"
+  },
+  "nodeGroups": [],
+  "id": "T2AlJYKPg0F0ZAOc",
+  "tags": []
+}
